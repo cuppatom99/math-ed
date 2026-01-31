@@ -46,9 +46,14 @@
             border-radius: 20px;
             margin-bottom: 20px;
             border: 3px solid var(--black);
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: background-color 0.3s;
         }
-        .target-number { font-size: 3.5rem; font-weight: 900; display: block; }
-        .target-label { text-transform: uppercase; font-size: 0.8rem; letter-spacing: 2px; }
+        .target-number { font-size: 3rem; font-weight: 900; display: block; line-height: 1; }
+        .target-label { text-transform: uppercase; font-size: 0.8rem; letter-spacing: 2px; margin-bottom: 5px; }
 
         .equation-area {
             display: flex;
@@ -70,7 +75,6 @@
             font-weight: bold;
             background: var(--cream);
             cursor: pointer;
-            transition: 0.2s;
         }
 
         .slot.filled { border: 3px solid var(--black); }
@@ -99,7 +103,7 @@
             user-select: none;
         }
         .item:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--black); }
-        .item.disabled { opacity: 0.1; cursor: default; transform: none; box-shadow: none; pointer-events: none; }
+        .item.disabled { opacity: 0.1; cursor: default; pointer-events: none; box-shadow: none; }
 
         .button-group { display: flex; gap: 10px; }
 
@@ -125,8 +129,8 @@
 <div class="game-card">
     <img src="https://raw.githubusercontent.com/cuppatom99/toastie-picker/main/Ham.png" class="logo" alt="Ham Logo">
     
-    <div class="target-box">
-        <span class="target-label">Target Number</span>
+    <div class="target-box" id="t-box">
+        <span class="target-label" id="t-label">Target Number</span>
         <span id="target-val" class="target-number">--</span>
     </div>
 
@@ -148,14 +152,15 @@
 
 <script>
     let targetNum;
-    let state = [null, null, null, null, null]; // Stores the unique ID of the item in the slot
+    let state = [null, null, null, null, null];
     let inventory = [];
+    let isShowingFeedback = false;
 
     function init() {
         state = [null, null, null, null, null];
         inventory = [];
+        isShowingFeedback = false;
         
-        // 1. Generate a solvable equation
         const n1 = Math.floor(Math.random() * 10) + 1;
         const n2 = Math.floor(Math.random() * 10) + 1;
         const n3 = Math.floor(Math.random() * 10) + 1;
@@ -165,31 +170,30 @@
         const op1 = ops[Math.floor(Math.random() * ops.length)];
         const op2 = ops[Math.floor(Math.random() * ops.length)];
 
-        // Calculate Target
         const rawResult = eval(`(${n1}${op1}${n2})${op2}${n3}`);
-        
-        // Ensure result is positive 0-99. If not, just simple addition.
-        if (rawResult < 0 || rawResult > 99) {
-            targetNum = n1 + n2 + n3;
-        } else {
-            targetNum = rawResult;
-        }
+        targetNum = (rawResult < 0 || rawResult > 99) ? (n1 + n2 + n3) : rawResult;
 
-        document.getElementById('target-val').innerText = targetNum;
-        document.getElementById('target-val').style.color = "white";
+        resetTargetDisplay();
 
-        // 2. Build Inventory with unique IDs to handle duplicates
         const nums = [n1, n2, n3, decoy].sort(() => Math.random() - 0.5);
         nums.forEach((n, i) => inventory.push({ id: `n${i}`, val: n, type: 'num' }));
         
-        const syms = ['+', '-', '*', '/'];
+        const syms = ['+', '-', 'x', '/']; // Displayed as x
         syms.forEach((s, i) => inventory.push({ id: `s${i}`, val: s, type: 'sym' }));
 
         render();
     }
 
+    function resetTargetDisplay() {
+        const valEl = document.getElementById('target-val');
+        const labelEl = document.getElementById('t-label');
+        valEl.innerText = targetNum;
+        valEl.style.color = "white";
+        valEl.style.fontSize = "3rem";
+        labelEl.innerText = "Target Number";
+    }
+
     function render() {
-        // Render Slots
         state.forEach((itemId, i) => {
             const el = document.getElementById(`s${i}`);
             const item = inventory.find(it => it.id === itemId);
@@ -197,7 +201,6 @@
             el.className = `slot ${i % 2 === 0 ? 'slot-num' : 'slot-sym'} ${item ? 'filled' : ''}`;
         });
 
-        // Render Inventory
         const invEl = document.getElementById('inv');
         invEl.innerHTML = '';
         inventory.forEach((item) => {
@@ -211,9 +214,9 @@
     }
 
     function useItem(item) {
+        if (isShowingFeedback) return;
         const isNum = item.type === 'num';
         const slots = isNum ? [0, 2, 4] : [1, 3];
-        
         for (let idx of slots) {
             if (state[idx] === null) {
                 state[idx] = item.id;
@@ -224,30 +227,45 @@
     }
 
     function clearSlot(idx) {
+        if (isShowingFeedback) return;
         state[idx] = null;
         render();
     }
 
     function submitAnswer() {
-        if (state.includes(null)) {
-            alert("Fill all slots first!");
-            return;
-        }
+        if (state.includes(null) || isShowingFeedback) return;
 
-        const vals = state.map(id => inventory.find(it => it.id === id).val);
+        const vals = state.map(id => {
+            let v = inventory.find(it => it.id === id).val;
+            return v === 'x' ? '*' : v; // Swap x for * for math
+        });
         
+        const valEl = document.getElementById('target-val');
+        const labelEl = document.getElementById('t-label');
+
         try {
-            const equation = `(${vals[0]}${vals[1]}${vals[2]})${vals[3]}${vals[4]}`;
-            const res = eval(equation);
+            const res = eval(`(${vals[0]}${vals[1]}${vals[2]})${vals[3]}${vals[4]}`);
             
             if (res === targetNum) {
-                document.getElementById('target-val').innerText = "CRUNCHED!";
-                document.getElementById('target-val').style.color = "var(--yellow)";
+                valEl.innerText = "CRUNCHED!";
+                valEl.style.color = "var(--yellow)";
+                labelEl.innerText = "Success!";
+                isShowingFeedback = true;
             } else {
-                alert(`That equals ${res}. Try again!`);
+                // Show incorrect feedback for 4 seconds
+                isShowingFeedback = true;
+                labelEl.innerText = "Not Quite...";
+                valEl.innerText = `THAT'S ${res}`;
+                valEl.style.fontSize = "2rem";
+                valEl.style.color = "var(--yellow)";
+                
+                setTimeout(() => {
+                    resetTargetDisplay();
+                    isShowingFeedback = false;
+                }, 4000);
             }
         } catch(e) {
-            alert("Error in math!");
+            alert("Check your symbols!");
         }
     }
 
