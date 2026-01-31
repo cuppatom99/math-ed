@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ham's Math Crunch</title>
+    <title>Ham's Hourly Crunch</title>
     <style>
         :root {
             --black: #000000;
@@ -18,13 +18,11 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--orange);
-            color: var(--black);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            overflow: hidden;
         }
 
         .game-card {
@@ -33,52 +31,57 @@
             border-radius: 30px;
             box-shadow: 15px 15px 0px var(--black);
             border: 4px solid var(--black);
-            max-width: 450px;
-            width: 90%;
+            max-width: 480px;
+            width: 95%;
             text-align: center;
         }
 
-        .logo { width: 80px; margin-bottom: 10px; }
+        .logo { width: 80px; margin-bottom: 5px; }
 
         .target-box {
             background: var(--purple);
             color: var(--white);
-            padding: 20px;
-            border-radius: 15px;
+            padding: 15px;
+            border-radius: 20px;
             margin-bottom: 20px;
             border: 3px solid var(--black);
         }
-
-        .target-number { font-size: 4rem; font-weight: 900; display: block; }
+        .target-number { font-size: 3.5rem; font-weight: 900; display: block; }
         .target-label { text-transform: uppercase; font-size: 0.8rem; letter-spacing: 2px; }
 
-        .slots {
+        /* Slots styling */
+        .equation-area {
             display: flex;
             justify-content: center;
+            align-items: center;
             gap: 8px;
             margin-bottom: 25px;
-            min-height: 60px;
         }
 
         .slot {
-            width: 50px;
-            height: 60px;
+            width: 55px;
+            height: 65px;
             border: 3px dashed #ccc;
-            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: bold;
             background: var(--cream);
+            cursor: pointer;
+            transition: 0.2s;
         }
 
-        .slot.filled { border-style: solid; border-color: var(--black); }
+        .slot-num { border-radius: 50%; width: 60px; } /* Circular for numbers */
+        .slot-sym { border-radius: 10px; background: #eee; width: 45px; height: 55px; } /* Square for symbols */
+
+        .slot.filled { border: 3px solid var(--black); }
+        .slot.filled.slot-num { background: var(--blue); color: white; }
+        .slot.filled.slot-sym { background: var(--yellow); color: black; }
 
         .inventory {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
             gap: 10px;
             background: var(--cream);
             padding: 15px;
@@ -87,50 +90,23 @@
         }
 
         .item {
-            padding: 12px 18px;
+            padding: 12px;
             background: var(--white);
             border: 2px solid var(--black);
             border-radius: 10px;
             cursor: pointer;
             font-weight: 900;
-            font-size: 1.2rem;
             box-shadow: 0 4px 0 var(--black);
-            transition: 0.1s;
         }
+        .item:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--black); }
+        .item.disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
 
-        .item:active { transform: translateY(4px); box-shadow: 0 0 0 var(--black); }
-        .item.symbol { background: var(--yellow); }
-        .item.number { background: var(--blue); color: var(--white); }
-
-        .timer-container {
-            width: 100%;
-            height: 15px;
-            background: var(--cream);
-            border: 2px solid var(--black);
-            border-radius: 10px;
-            margin-top: 20px;
-            overflow: hidden;
+        .timer-info {
+            margin-top: 15px;
+            font-weight: bold;
+            color: var(--purple);
+            font-size: 1.1rem;
         }
-
-        #timer-bar {
-            width: 100%;
-            height: 100%;
-            background: var(--blue);
-            transition: width 0.1s linear;
-        }
-
-        .controls { margin-top: 20px; display: flex; gap: 10px; }
-        button {
-            flex: 1;
-            padding: 10px;
-            border-radius: 50px;
-            border: 3px solid var(--black);
-            font-weight: 900;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-        #clear-btn { background: var(--cream); }
-        #next-btn { background: var(--yellow); display: none; }
     </style>
 </head>
 <body>
@@ -139,135 +115,136 @@
     <img src="https://raw.githubusercontent.com/cuppatom99/toastie-picker/main/Ham.png" class="logo" alt="Ham Logo">
     
     <div class="target-box">
-        <span class="target-label">Target Number</span>
-        <span id="target-val" class="target-number">??</span>
+        <span class="target-label">Hourly Goal</span>
+        <span id="target-val" class="target-number">--</span>
     </div>
 
-    <div class="slots" id="slots">
-        <div class="slot" data-index="0"></div>
-        <div class="slot" data-index="1"></div>
-        <div class="slot" data-index="2"></div>
-        <div class="slot" data-index="3"></div>
-        <div class="slot" data-index="4"></div>
+    <div class="equation-area">
+        <div class="slot slot-num" id="s0" onclick="clearSlot(0)"></div>
+        <div class="slot slot-sym" id="s1" onclick="clearSlot(1)"></div>
+        <div class="slot slot-num" id="s2" onclick="clearSlot(2)"></div>
+        <div class="slot slot-sym" id="s3" onclick="clearSlot(3)"></div>
+        <div class="slot slot-num" id="s4" onclick="clearSlot(4)"></div>
     </div>
 
-    <div class="inventory" id="inventory">
-        </div>
+    <div class="inventory" id="inv"></div>
 
-    <div class="timer-container">
-        <div id="timer-bar"></div>
-    </div>
-
-    <div class="controls">
-        <button id="clear-btn">Clear</button>
-        <button id="next-btn">Next Level</button>
-    </div>
+    <div id="timer" class="timer-info">Resetting in: 59:59</div>
 </div>
 
 <script>
-    let targetNum, solution;
-    let currentInput = [];
-    let timeLeft = 100;
-    let timerInterval;
+    let targetNum, solutionArr = [];
+    let state = [null, null, null, null, null];
+    let inventory = [];
 
-    const slotElements = document.querySelectorAll('.slot');
-    const invElement = document.getElementById('inventory');
-    const targetDisplay = document.getElementById('target-val');
-    const timerBar = document.getElementById('timer-bar');
+    function generateHourlySeed() {
+        const now = new Date();
+        // This creates a unique number for every hour of every day
+        return now.getFullYear() + now.getMonth() + now.getDate() + now.getHours();
+    }
 
-    function initGame() {
-        clearInterval(timerInterval);
-        currentInput = [];
-        timeLeft = 100;
-        updateSlots();
-        
-        // Generate a random solvable equation: (A op B) op C
-        const n1 = Math.floor(Math.random() * 10) + 1;
-        const n2 = Math.floor(Math.random() * 10) + 1;
-        const n3 = Math.floor(Math.random() * 10) + 1;
-        const n4 = Math.floor(Math.random() * 10) + 1; // Decoy
+    // Seeded random function so everyone sees the same puzzle each hour
+    function seededRandom(seed) {
+        var x = Math.sin(seed) * 10000;
+        return x - Math.floor(x);
+    }
+
+    function init() {
+        const seed = generateHourlySeed();
+        const rand = () => seededRandom(seed + Math.random()); // Mixed seed for internal generation
+
+        // Generate Target: (A op B) op C
+        const n1 = Math.floor(seededRandom(seed) * 9) + 1;
+        const n2 = Math.floor(seededRandom(seed + 1) * 9) + 1;
+        const n3 = Math.floor(seededRandom(seed + 2) * 9) + 1;
+        const decoy = Math.floor(seededRandom(seed + 3) * 9) + 1;
         const ops = ['+', '-', '*'];
-        const op1 = ops[Math.floor(Math.random() * ops.length)];
-        const op2 = ops[Math.floor(Math.random() * ops.length)];
+        const op1 = ops[Math.floor(seededRandom(seed + 4) * 3)];
+        const op2 = ops[Math.floor(seededRandom(seed + 5) * 3)];
 
-        const equation = `(${n1}${op1}${n2})${op2}${n3}`;
-        targetNum = eval(equation);
+        targetNum = eval(`(${n1}${op1}${n2})${op2}${n3}`);
+        if (targetNum < 0 || targetNum > 99) { /* auto-corrects by forcing simple addition if out of range */
+             targetNum = n1 + n2 + n3;
+        }
 
-        // If target is negative or too big, retry
-        if (targetNum < 0 || targetNum > 99) return initGame();
+        document.getElementById('target-val').innerText = targetNum;
 
-        targetDisplay.innerText = targetNum;
+        inventory = [
+            {val: n1, type: 'num'}, {val: n2, type: 'num'}, 
+            {val: n3, type: 'num'}, {val: decoy, type: 'num'},
+            {val: '+', type: 'sym'}, {val: '-', type: 'sym'}, 
+            {val: '*', type: 'sym'}, {val: '/', type: 'sym'}
+        ];
+        
+        render();
+        updateTimer();
+    }
 
-        // Shuffle numbers and symbols for inventory
-        const items = [
-            {val: n1, type: 'number'}, {val: n2, type: 'number'}, 
-            {val: n3, type: 'number'}, {val: n4, type: 'number'},
-            {val: '+', type: 'symbol'}, {val: '-', type: 'symbol'}, 
-            {val: '*', type: 'symbol'}, {val: '/', type: 'symbol'}
-        ].sort(() => Math.random() - 0.5);
-
-        invElement.innerHTML = '';
-        items.forEach(item => {
-            const div = document.createElement('div');
-            div.className = `item ${item.type}`;
-            div.innerText = item.val;
-            div.onclick = () => addToSlot(item.val);
-            invElement.appendChild(div);
+    function render() {
+        // Render Slots
+        state.forEach((val, i) => {
+            const el = document.getElementById(`s${i}`);
+            el.innerText = val !== null ? val : '';
+            el.className = `slot ${i % 2 === 0 ? 'slot-num' : 'slot-sym'} ${val !== null ? 'filled' : ''}`;
         });
 
-        startTimer();
-        document.getElementById('next-btn').style.display = 'none';
-    }
-
-    function addToSlot(val) {
-        if (currentInput.length < 5) {
-            currentInput.push(val);
-            updateSlots();
-            checkResult();
-        }
-    }
-
-    function updateSlots() {
-        slotElements.forEach((s, i) => {
-            s.innerText = currentInput[i] || '';
-            s.className = currentInput[i] ? 'slot filled' : 'slot';
+        // Render Inventory
+        const invEl = document.getElementById('inv');
+        invEl.innerHTML = '';
+        inventory.forEach((item, idx) => {
+            const btn = document.createElement('div');
+            btn.className = `item ${state.includes(item.val) ? 'disabled' : ''}`;
+            btn.innerText = item.val;
+            btn.onclick = () => useItem(item);
+            invEl.appendChild(btn);
         });
+
+        checkWin();
     }
 
-    function checkResult() {
-        if (currentInput.length === 5) {
-            try {
-                // Formatting for eval: (N1 OP N2) OP N3
-                const exp = `(${currentInput[0]}${currentInput[1]}${currentInput[2]})${currentInput[3]}${currentInput[4]}`;
-                if (eval(exp) === targetNum) {
-                    clearInterval(timerInterval);
-                    targetDisplay.innerText = "WIN!";
-                    document.getElementById('next-btn').style.display = 'block';
-                }
-            } catch (e) { /* Invalid math, wait for clear */ }
-        }
-    }
+    function useItem(item) {
+        if (state.includes(item.val)) return; // Already used
 
-    function startTimer() {
-        timerInterval = setInterval(() => {
-            timeLeft -= 0.5;
-            timerBar.style.width = timeLeft + "%";
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                targetDisplay.innerText = "LOSE";
-                document.getElementById('next-btn').style.display = 'block';
+        const isNum = !isNaN(item.val);
+        const slots = isNum ? [0, 2, 4] : [1, 3];
+        
+        for (let idx of slots) {
+            if (state[idx] === null) {
+                state[idx] = item.val;
+                render();
+                break;
             }
-        }, 100);
+        }
     }
 
-    document.getElementById('clear-btn').onclick = () => {
-        currentInput = [];
-        updateSlots();
-    };
+    function clearSlot(idx) {
+        state[idx] = null;
+        render();
+    }
 
-    document.getElementById('next-btn').onclick = initGame;
+    function checkWin() {
+        if (!state.includes(null)) {
+            try {
+                const res = eval(`(${state[0]}${state[1]}${state[2]})${state[3]}${state[4]}`);
+                if (res === targetNum) {
+                    document.getElementById('target-val').innerText = "DONE!";
+                    document.getElementById('target-val').style.color = "var(--yellow)";
+                }
+            } catch(e) {}
+        }
+    }
 
-    initGame();
+    function updateTimer() {
+        const now = new Date();
+        const mins = 59 - now.getMinutes();
+        const secs = 59 - now.getSeconds();
+        document.getElementById('timer').innerText = `Resetting in: ${mins}:${secs < 10 ? '0'+secs : secs}`;
+        
+        if (mins === 0 && secs === 0) init();
+    }
+
+    setInterval(updateTimer, 1000);
+    init();
 </script>
 
 </body>
