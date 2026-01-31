@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ham's Hourly Crunch</title>
+    <title>Ham's Math Crunch</title>
     <style>
         :root {
             --black: #000000;
@@ -23,6 +23,7 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
+            padding: 20px;
         }
 
         .game-card {
@@ -32,7 +33,7 @@
             box-shadow: 15px 15px 0px var(--black);
             border: 4px solid var(--black);
             max-width: 480px;
-            width: 95%;
+            width: 100%;
             text-align: center;
         }
 
@@ -57,7 +58,6 @@
             margin-bottom: 25px;
         }
 
-        /* All slots are now square */
         .slot {
             width: 55px;
             height: 65px;
@@ -74,11 +74,7 @@
         }
 
         .slot.filled { border: 3px solid var(--black); }
-        
-        /* Number slots: White when filled */
         .slot-num.filled { background: var(--white); color: var(--black); }
-        
-        /* Symbol slots: Yellow when filled */
         .slot-sym.filled { background: var(--yellow); color: var(--black); }
 
         .inventory {
@@ -100,32 +96,28 @@
             cursor: pointer;
             font-weight: 900;
             box-shadow: 0 4px 0 var(--black);
+            user-select: none;
         }
         .item:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--black); }
-        .item.disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
+        .item.disabled { opacity: 0.1; cursor: default; transform: none; box-shadow: none; pointer-events: none; }
 
-        .btn-submit {
-            width: 100%;
+        .button-group { display: flex; gap: 10px; }
+
+        button {
+            flex: 1;
             padding: 15px;
-            background: var(--blue);
-            color: white;
             border: 3px solid var(--black);
             border-radius: 50px;
-            font-size: 1.5rem;
+            font-size: 1.1rem;
             font-weight: 900;
             cursor: pointer;
             text-transform: uppercase;
-            box-shadow: 0 6px 0 var(--black);
+            box-shadow: 0 4px 0 var(--black);
         }
 
-        .btn-submit:active { transform: translateY(3px); box-shadow: 0 3px 0 var(--black); }
-
-        .timer-info {
-            margin-top: 20px;
-            font-weight: bold;
-            color: var(--purple);
-            font-size: 1rem;
-        }
+        #submit-btn { background: var(--blue); color: white; }
+        #new-btn { background: var(--yellow); color: black; }
+        button:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--black); }
     </style>
 </head>
 <body>
@@ -134,7 +126,7 @@
     <img src="https://raw.githubusercontent.com/cuppatom99/toastie-picker/main/Ham.png" class="logo" alt="Ham Logo">
     
     <div class="target-box">
-        <span class="target-label">Hourly Goal</span>
+        <span class="target-label">Target Number</span>
         <span id="target-val" class="target-number">--</span>
     </div>
 
@@ -148,67 +140,70 @@
 
     <div class="inventory" id="inv"></div>
 
-    <button class="btn-submit" onclick="submitAnswer()">Submit</button>
-
-    <div id="timer" class="timer-info">Resetting in: 59:59</div>
+    <div class="button-group">
+        <button id="new-btn" onclick="init()">New Puzzle</button>
+        <button id="submit-btn" onclick="submitAnswer()">Submit</button>
+    </div>
 </div>
 
 <script>
     let targetNum;
-    let state = [null, null, null, null, null];
+    let state = [null, null, null, null, null]; // Stores the unique ID of the item in the slot
     let inventory = [];
 
-    function generateHourlySeed() {
-        const now = new Date();
-        return now.getFullYear() + now.getMonth() + now.getDate() + now.getHours();
-    }
-
-    function seededRandom(seed) {
-        var x = Math.sin(seed) * 10000;
-        return x - Math.floor(x);
-    }
-
     function init() {
-        const seed = generateHourlySeed();
         state = [null, null, null, null, null];
+        inventory = [];
         
-        const n1 = Math.floor(seededRandom(seed) * 9) + 1;
-        const n2 = Math.floor(seededRandom(seed + 1) * 9) + 1;
-        const n3 = Math.floor(seededRandom(seed + 2) * 9) + 1;
-        const decoy = Math.floor(seededRandom(seed + 3) * 9) + 1;
+        // 1. Generate a solvable equation
+        const n1 = Math.floor(Math.random() * 10) + 1;
+        const n2 = Math.floor(Math.random() * 10) + 1;
+        const n3 = Math.floor(Math.random() * 10) + 1;
+        const decoy = Math.floor(Math.random() * 10) + 1;
         
         const ops = ['+', '-', '*'];
-        const op1 = ops[Math.floor(seededRandom(seed + 4) * 3)];
-        const op2 = ops[Math.floor(seededRandom(seed + 5) * 3)];
+        const op1 = ops[Math.floor(Math.random() * ops.length)];
+        const op2 = ops[Math.floor(Math.random() * ops.length)];
 
-        targetNum = eval(`(${n1}${op1}${n2})${op2}${n3}`);
-        if (targetNum < 0 || targetNum > 99) targetNum = n1 + n2 + n3;
+        // Calculate Target
+        const rawResult = eval(`(${n1}${op1}${n2})${op2}${n3}`);
+        
+        // Ensure result is positive 0-99. If not, just simple addition.
+        if (rawResult < 0 || rawResult > 99) {
+            targetNum = n1 + n2 + n3;
+        } else {
+            targetNum = rawResult;
+        }
 
         document.getElementById('target-val').innerText = targetNum;
         document.getElementById('target-val').style.color = "white";
 
-        inventory = [
-            {val: n1, type: 'num'}, {val: n2, type: 'num'}, 
-            {val: n3, type: 'num'}, {val: decoy, type: 'num'},
-            {val: '+', type: 'sym'}, {val: '-', type: 'sym'}, 
-            {val: '*', type: 'sym'}, {val: '/', type: 'sym'}
-        ];
+        // 2. Build Inventory with unique IDs to handle duplicates
+        const nums = [n1, n2, n3, decoy].sort(() => Math.random() - 0.5);
+        nums.forEach((n, i) => inventory.push({ id: `n${i}`, val: n, type: 'num' }));
         
+        const syms = ['+', '-', '*', '/'];
+        syms.forEach((s, i) => inventory.push({ id: `s${i}`, val: s, type: 'sym' }));
+
         render();
     }
 
     function render() {
-        state.forEach((val, i) => {
+        // Render Slots
+        state.forEach((itemId, i) => {
             const el = document.getElementById(`s${i}`);
-            el.innerText = val !== null ? val : '';
-            el.className = `slot ${i % 2 === 0 ? 'slot-num' : 'slot-sym'} ${val !== null ? 'filled' : ''}`;
+            const item = inventory.find(it => it.id === itemId);
+            el.innerText = item ? item.val : '';
+            el.className = `slot ${i % 2 === 0 ? 'slot-num' : 'slot-sym'} ${item ? 'filled' : ''}`;
         });
 
+        // Render Inventory
         const invEl = document.getElementById('inv');
         invEl.innerHTML = '';
         inventory.forEach((item) => {
             const btn = document.createElement('div');
-            btn.className = `item ${state.includes(item.val) ? 'disabled' : ''}`;
+            const isUsed = state.includes(item.id);
+            btn.className = `item ${isUsed ? 'disabled' : ''}`;
             btn.innerText = item.val;
             btn.onclick = () => useItem(item);
             invEl.appendChild(btn);
@@ -216,12 +211,12 @@
     }
 
     function useItem(item) {
-        if (state.includes(item.val)) return;
-        const isNum = !isNaN(item.val);
+        const isNum = item.type === 'num';
         const slots = isNum ? [0, 2, 4] : [1, 3];
+        
         for (let idx of slots) {
             if (state[idx] === null) {
-                state[idx] = item.val;
+                state[idx] = item.id;
                 render();
                 break;
             }
@@ -239,28 +234,23 @@
             return;
         }
 
+        const vals = state.map(id => inventory.find(it => it.id === id).val);
+        
         try {
-            const res = eval(`(${state[0]}${state[1]}${state[2]})${state[3]}${state[4]}`);
+            const equation = `(${vals[0]}${vals[1]}${vals[2]})${vals[3]}${vals[4]}`;
+            const res = eval(equation);
+            
             if (res === targetNum) {
-                document.getElementById('target-val').innerText = "WIN!";
+                document.getElementById('target-val').innerText = "CRUNCHED!";
                 document.getElementById('target-val').style.color = "var(--yellow)";
             } else {
-                alert(`Not quite! That equals ${res}. Try again!`);
+                alert(`That equals ${res}. Try again!`);
             }
         } catch(e) {
-            alert("Invalid equation!");
+            alert("Error in math!");
         }
     }
 
-    function updateTimer() {
-        const now = new Date();
-        const mins = 59 - now.getMinutes();
-        const secs = 59 - now.getSeconds();
-        document.getElementById('timer').innerText = `New Puzzle in: ${mins}m ${secs}s`;
-        if (mins === 0 && secs === 0) init();
-    }
-
-    setInterval(updateTimer, 1000);
     init();
 </script>
 
