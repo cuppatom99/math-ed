@@ -49,19 +49,20 @@
         .target-number { font-size: 3.5rem; font-weight: 900; display: block; }
         .target-label { text-transform: uppercase; font-size: 0.8rem; letter-spacing: 2px; }
 
-        /* Slots styling */
         .equation-area {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             margin-bottom: 25px;
         }
 
+        /* All slots are now square */
         .slot {
             width: 55px;
             height: 65px;
             border: 3px dashed #ccc;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -72,12 +73,13 @@
             transition: 0.2s;
         }
 
-        .slot-num { border-radius: 50%; width: 60px; } /* Circular for numbers */
-        .slot-sym { border-radius: 10px; background: #eee; width: 45px; height: 55px; } /* Square for symbols */
-
         .slot.filled { border: 3px solid var(--black); }
-        .slot.filled.slot-num { background: var(--blue); color: white; }
-        .slot.filled.slot-sym { background: var(--yellow); color: black; }
+        
+        /* Number slots: White when filled */
+        .slot-num.filled { background: var(--white); color: var(--black); }
+        
+        /* Symbol slots: Yellow when filled */
+        .slot-sym.filled { background: var(--yellow); color: var(--black); }
 
         .inventory {
             display: grid;
@@ -87,6 +89,7 @@
             padding: 15px;
             border-radius: 20px;
             border: 2px solid var(--black);
+            margin-bottom: 20px;
         }
 
         .item {
@@ -101,11 +104,27 @@
         .item:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--black); }
         .item.disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
 
+        .btn-submit {
+            width: 100%;
+            padding: 15px;
+            background: var(--blue);
+            color: white;
+            border: 3px solid var(--black);
+            border-radius: 50px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 6px 0 var(--black);
+        }
+
+        .btn-submit:active { transform: translateY(3px); box-shadow: 0 3px 0 var(--black); }
+
         .timer-info {
-            margin-top: 15px;
+            margin-top: 20px;
             font-weight: bold;
             color: var(--purple);
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
     </style>
 </head>
@@ -129,21 +148,21 @@
 
     <div class="inventory" id="inv"></div>
 
+    <button class="btn-submit" onclick="submitAnswer()">Submit</button>
+
     <div id="timer" class="timer-info">Resetting in: 59:59</div>
 </div>
 
 <script>
-    let targetNum, solutionArr = [];
+    let targetNum;
     let state = [null, null, null, null, null];
     let inventory = [];
 
     function generateHourlySeed() {
         const now = new Date();
-        // This creates a unique number for every hour of every day
         return now.getFullYear() + now.getMonth() + now.getDate() + now.getHours();
     }
 
-    // Seeded random function so everyone sees the same puzzle each hour
     function seededRandom(seed) {
         var x = Math.sin(seed) * 10000;
         return x - Math.floor(x);
@@ -151,23 +170,22 @@
 
     function init() {
         const seed = generateHourlySeed();
-        const rand = () => seededRandom(seed + Math.random()); // Mixed seed for internal generation
-
-        // Generate Target: (A op B) op C
+        state = [null, null, null, null, null];
+        
         const n1 = Math.floor(seededRandom(seed) * 9) + 1;
         const n2 = Math.floor(seededRandom(seed + 1) * 9) + 1;
         const n3 = Math.floor(seededRandom(seed + 2) * 9) + 1;
         const decoy = Math.floor(seededRandom(seed + 3) * 9) + 1;
+        
         const ops = ['+', '-', '*'];
         const op1 = ops[Math.floor(seededRandom(seed + 4) * 3)];
         const op2 = ops[Math.floor(seededRandom(seed + 5) * 3)];
 
         targetNum = eval(`(${n1}${op1}${n2})${op2}${n3}`);
-        if (targetNum < 0 || targetNum > 99) { /* auto-corrects by forcing simple addition if out of range */
-             targetNum = n1 + n2 + n3;
-        }
+        if (targetNum < 0 || targetNum > 99) targetNum = n1 + n2 + n3;
 
         document.getElementById('target-val').innerText = targetNum;
+        document.getElementById('target-val').style.color = "white";
 
         inventory = [
             {val: n1, type: 'num'}, {val: n2, type: 'num'}, 
@@ -177,37 +195,30 @@
         ];
         
         render();
-        updateTimer();
     }
 
     function render() {
-        // Render Slots
         state.forEach((val, i) => {
             const el = document.getElementById(`s${i}`);
             el.innerText = val !== null ? val : '';
             el.className = `slot ${i % 2 === 0 ? 'slot-num' : 'slot-sym'} ${val !== null ? 'filled' : ''}`;
         });
 
-        // Render Inventory
         const invEl = document.getElementById('inv');
         invEl.innerHTML = '';
-        inventory.forEach((item, idx) => {
+        inventory.forEach((item) => {
             const btn = document.createElement('div');
             btn.className = `item ${state.includes(item.val) ? 'disabled' : ''}`;
             btn.innerText = item.val;
             btn.onclick = () => useItem(item);
             invEl.appendChild(btn);
         });
-
-        checkWin();
     }
 
     function useItem(item) {
-        if (state.includes(item.val)) return; // Already used
-
+        if (state.includes(item.val)) return;
         const isNum = !isNaN(item.val);
         const slots = isNum ? [0, 2, 4] : [1, 3];
-        
         for (let idx of slots) {
             if (state[idx] === null) {
                 state[idx] = item.val;
@@ -222,15 +233,22 @@
         render();
     }
 
-    function checkWin() {
-        if (!state.includes(null)) {
-            try {
-                const res = eval(`(${state[0]}${state[1]}${state[2]})${state[3]}${state[4]}`);
-                if (res === targetNum) {
-                    document.getElementById('target-val').innerText = "DONE!";
-                    document.getElementById('target-val').style.color = "var(--yellow)";
-                }
-            } catch(e) {}
+    function submitAnswer() {
+        if (state.includes(null)) {
+            alert("Fill all slots first!");
+            return;
+        }
+
+        try {
+            const res = eval(`(${state[0]}${state[1]}${state[2]})${state[3]}${state[4]}`);
+            if (res === targetNum) {
+                document.getElementById('target-val').innerText = "WIN!";
+                document.getElementById('target-val').style.color = "var(--yellow)";
+            } else {
+                alert(`Not quite! That equals ${res}. Try again!`);
+            }
+        } catch(e) {
+            alert("Invalid equation!");
         }
     }
 
@@ -238,8 +256,7 @@
         const now = new Date();
         const mins = 59 - now.getMinutes();
         const secs = 59 - now.getSeconds();
-        document.getElementById('timer').innerText = `Resetting in: ${mins}:${secs < 10 ? '0'+secs : secs}`;
-        
+        document.getElementById('timer').innerText = `New Puzzle in: ${mins}m ${secs}s`;
         if (mins === 0 && secs === 0) init();
     }
 
